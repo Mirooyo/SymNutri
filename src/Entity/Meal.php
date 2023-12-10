@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\MealRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use JMS\Serializer\Annotation\Groups;
 
@@ -25,18 +26,19 @@ class Meal
     #[Groups(["getMeals"])]
     private Collection $food;
 
-    #[ORM\Column]
-    #[Groups(["getFoods", "getMeals"])]
-    private ?\DateTimeImmutable $date = null;
 
     #[ORM\ManyToOne(inversedBy: 'meals')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
 
+    #[ORM\Column(type: Types::DATE_MUTABLE)]
+    #[Groups(["getMeals"])]
+    private ?\DateTimeInterface $date = null;
+
     public function __construct()
     {
         $this->food = new ArrayCollection();
-        $this->date = new \DateTimeImmutable(); 
+        $this->date = \DateTimeImmutable::createFromFormat('Y-m-d', date('Y-m-d'));
 
     }
 
@@ -87,17 +89,7 @@ class Meal
         return $this;
     }
 
-    public function getDate(): ?\DateTimeImmutable
-    {
-        return $this->date;
-    }
 
-    public function setDate(\DateTimeImmutable $date): static
-    {
-        $this->date = $date;
-
-        return $this;
-    }
 
     public function getUser(): ?User
     {
@@ -107,6 +99,18 @@ class Meal
     public function setUser(?User $user): static
     {
         $this->user = $user;
+
+        return $this;
+    }
+
+    public function getDate(): ?\DateTimeInterface
+    {
+        return $this->date;
+    }
+
+    public function setDate(\DateTimeInterface $date): static
+    {
+        $this->date = $date;
 
         return $this;
     }

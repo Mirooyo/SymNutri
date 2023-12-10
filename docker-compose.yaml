@@ -1,0 +1,17 @@
+version: "3"
+services:
+  symfony:
+    image: symnutri
+    ports:
+      - "8080:80"
+    volumes:
+      - /chemin/local:/chemin/du/conteneur
+    depends_on:
+      - database
+  database:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: symfony_database
+      MYSQL_USER: symfony_user
+      MYSQL_PASSWORD: symfony_password

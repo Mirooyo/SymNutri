@@ -22,12 +22,13 @@ class MealController extends AbstractController
     public function getAllMeals(UserService $user, MealRepository $mealRepository, SerializerInterface $serializer): JsonResponse
     {
         $currentUser = $user->getCurrentUser();
-        if($currentUser){
-            $mealList = $mealRepository->findBy(['user' => $currentUser]);
+        if ($currentUser) {
+            $date = \DateTime::createFromFormat('Y-m-d', date('Y-m-d'));
+            $mealList = $mealRepository->findBy(['user' => $currentUser, 'date' => $date]);
             $context = SerializationContext::create()->setGroups(["getMeals"]);
             $jsonMeal = $serializer->serialize($mealList, "json", $context);
             return new JsonResponse($jsonMeal, Response::HTTP_OK, [], true);
-        }else {
+        } else {
             return new JsonResponse(null, JsonResponse::HTTP_NOT_FOUND);
         }
 
@@ -37,12 +38,12 @@ class MealController extends AbstractController
     public function getOneMeals(MealRepository $mealRepository, SerializerInterface $serializer, int $id, UserService $user): JsonResponse
     {
         $meals = $mealRepository->find($id);
-        
+
         $currentUser = $user->getCurrentUser();
-        if($meals->getUser() !== $currentUser){
+        if ($meals->getUser() !== $currentUser) {
             return new JsonResponse(null, JsonResponse::HTTP_UNAUTHORIZED);
         }
-        
+
         $context = SerializationContext::create()->setGroups(["getMeals"]);
         $jsonMeals = $serializer->serialize($meals, "json", $context);
         return new JsonResponse($jsonMeals, JsonResponse::HTTP_OK, [], true);
@@ -52,30 +53,40 @@ class MealController extends AbstractController
     public function deleteMeal(EntityManagerInterface $manager, int $id, MealRepository $mealRepository): JsonResponse
     {
         $meal = $mealRepository->find($id);
-        if($meal){
+        if ($meal) {
             $manager->remove($meal);
             $manager->flush();
         }
 
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
-    
+
     }
 
     #[Route('api/meals', name: "app_mealCreate", methods: ["POST"])]
-    public function createMeal(Request $request, EntityManagerInterface $manager, UrlGeneratorInterface $urlGenerator, SerializerInterface $serializer, UserService $user, UserRepository $userRepository)
+    public function createMeal(Request $request, MealRepository $mealRepository, EntityManagerInterface $manager, UrlGeneratorInterface $urlGenerator, SerializerInterface $serializer, UserService $user, UserRepository $userRepository)
     {
         $userId = $user->getCurrentUser()->getId();
         $currentUser = $userRepository->find($userId);
-        $date = new \DateTimeImmutable();
+        $date = \DateTime::createFromFormat('Y-m-d', date('Y-m-d'));
+
         $meal = $serializer->deserialize($request->getContent(), Meal::class, "json");
+
+        $existingMeal = $mealRepository->findOneBy(['user' => $currentUser, 'nom' => $meal->getNom(), 'date' => $date]);
+
+        if ($existingMeal) {
+            return new JsonResponse("Un repas avec le même nom existe déjà pour aujourd'hui.", JsonResponse::HTTP_CONFLICT);
+        }
+
         $meal->setUser($currentUser);
         $meal->setDate($date);
+
         $manager->persist($meal);
         $manager->flush();
-        $jsonMeal = $serializer->serialize($meal, "json");
 
-        return new JsonResponse(null, JsonResponse::HTTP_CREATED, [], true);
+        $jsonMeal = $serializer->serialize($meal, "json");
+        return new JsonResponse($jsonMeal, JsonResponse::HTTP_CREATED, [], true);
     }
+
 
     // Pas d'update car on change directement les aliments du repas
 }
